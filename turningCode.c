@@ -135,15 +135,5 @@ task main () {
 		//pidRequestedValue;
 		wait1Msec(50);
 	}
-  /*while(true) {
 
-  	eraseDisplay();
-    nxtDisplayTextLine(1, "Reading");
-    nxtDisplayTextLine(2, "Target: %4d", _target);
-    nxtDisplayTextLine(4, "Abs:   %4d", HTMCreadHeading(HTMC));
-    nxtDisplayTextLine(5, "Rel:   %4d", HTMCreadRelativeHeading(HTMC));
-    wait1Msec(100);
-
-  }
-  */
 }
