@@ -132,7 +132,6 @@ task main () {
 
   while (true)
   {
-		//pidRequestedValue;
 		wait1Msec(50);
 	}
 
