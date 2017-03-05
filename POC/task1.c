@@ -5,6 +5,40 @@
 
 #include "gyroPid.h"
 
+static int masterPower = 120;
+static int slavePower = 120;
+static int distCount = 0;
+
+task driveStraight()
+{
+
+  int error = 0;
+
+  int kp = 5;
+
+  nMotorEncoder[motorLeft] = 0;
+  nMotorEncoder[motorRight] = 0;
+
+  while(true)
+  {
+
+    motor[motorLeft] = masterPower;
+    motor[motorRight] = slavePower;
+
+    error = nMotorEncoder[motorLeft] - nMotorEncoder[motorRight];
+
+    slavePower += error / kp;
+
+    distCount += nMotorEncoder[motorLeft];
+
+    nMotorEncoder[motorLeft] = 0;
+  	nMotorEncoder[motorRight] = 0;
+
+    wait1Msec(100);
+
+  }
+}
+
 task main () {
 
 	pidRequestedValue = 30;
@@ -18,17 +52,12 @@ task main () {
 
 	wait10Msec(1);
 
-	nMotorEncoder[motorLeft] = 0;
-	nMotorEncoder[motorRight] = 0;
-	nMotorEncoderTarget[motorLeft] = in2encoder(12);
-	nMotorEncoderTarget[motorRight] = in2encoder(12);
-
-	motor[motorLeft] = 127;
-	motor[motorRight] = 127;
-
-	while(nMotorRunState[motorLeft] != runStateIdle && nMotorRunState[motorRight] != runStateIdle)
-	{
+	startTask(driveStraight);
+	while (distCount < 2 * 0.3048 * 1000){ // 2 meters
 	}
+
+	stopTask(driveStraight);
+
 	motor[motorLeft] = 0;
 	motor[motorRight] = 0;
 

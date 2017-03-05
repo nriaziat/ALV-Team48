@@ -31,7 +31,9 @@ float gyroAngle(){
 
 void calibrate(){
 	float i = 0.0;
-	while (nPgmTime < 3000){
+	int startTime;
+	startTime = nPgmTime;
+	while (nPgmTime - startTime < 3000){
 		offset += SensorRaw[gyro];
 		i++;
 	}
@@ -53,7 +55,7 @@ task pidController()
     // Init the variables - thanks Glenn :)
     pidLastError  = 0;
     pidIntegral   = 0;
-		calibrate();
+		//calibrate();
     while( true )
         {
         // Is PID control active ?
@@ -109,7 +111,7 @@ task pidController()
             motor[motorRight] = 0;
             }
 
-        // Run at 50Hz
+        // Run at 20Hz
         wait1Msec( 10 );
         }
 }

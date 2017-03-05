@@ -4,7 +4,7 @@
 
 #include "gyroPid.h"
 
-int xCoorStart, yCoorStart, xCoorEnd, yCoorEnd, xDiff, yDiff;
+static int xCoorStart, yCoorStart, xCoorEnd, yCoorEnd, xDiff, yDiff;
 const unsigned char noError = 0x01; // hex for 0000 0001
 const unsigned char manOveride = 0x02; // hex for 0000 0010
 const unsigned char outBound = 0x04; // hex for 0000 0100
@@ -21,157 +21,140 @@ static int distCount = 0;
 task driveStraight()
 {
 
-  int error = 0;
+	int error = 0;
 
-  int kp = 5;
+	int kp = 5;
 
-  nMotorEncoder[motorLeft] = 0;
-  nMotorEncoder[motorRight] = 0;
+	nMotorEncoder[motorLeft] = 0;
+	nMotorEncoder[motorRight] = 0;
 
-  while(true)
-  {
+	while(true)
+	{
 
-    motor[motorLeft] = masterPower;
-    motor[motorRight] = slavePower;
+		motor[motorLeft] = masterPower;
+		motor[motorRight] = slavePower;
 
-    error = nMotorEncoder[motorLeft] - nMotorEncoder[motorRight];
+		error = nMotorEncoder[motorLeft] - nMotorEncoder[motorRight]; // find diference between two motor positions
 
-    slavePower += error / kp;
+		slavePower += error / kp; // adjust slave power to match master speed
 
-    distCount += nMotorEncoder[motorLeft];
+		distCount += nMotorEncoder[motorLeft]; // sum total distance
 
-    nMotorEncoder[motorLeft] = 0;
-  	nMotorEncoder[motorRight] = 0;
+		nMotorEncoder[motorLeft] = 0; // reset encoders at end of loop
+		nMotorEncoder[motorRight] = 0;
 
-    wait1Msec(100);
+		wait1Msec(100);
 
-  }
+	}
+}
+
+void driveUntil(int distance){
+
+	//take distance in meters
+
+	distCount = 0;
+	startTask(driveStraight);
+
+	while (distCount < distance * 0.3048 * 1000){
+	}
+
+	stopTask(driveStraight);
+
+	motor[motorLeft] = 0;
+	motor[motorRight] = 0;
+}
+
+void messageCheck(){
+	int i = 0;
+	ClearMessage();
+	wait1Msec(20);
+	sendMessage(5);
+	while (!messageParm[0]){
+		ClearMessage();
+		wait1Msec(1);
+	}
+
+	for (i = 0; i < 6; i++){ // use bitmaps to determine which errors are present
+		switch (errorTypes[i] & messageParm[0]){
+		case noError:
+			displayTextLine(i, "%s", "noError");
+			xCoorStart = messageParm[1];
+			yCoorStart = messageParm[2];
+			displayString(4, "%d, %d", xCoorStart, yCoorStart);
+			break;
+		case manOveride:
+			displayTextLine(i, "%s", "manOveride");
+			xCoorStart = messageParm[1];
+			yCoorStart = messageParm[2];
+			displayString(4, "%d, %d", xCoorStart, yCoorStart);
+			break;
+		case outBound:
+			displayTextLine(i, "%s", "outBound");
+			messageCheck();
+			break;
+		case noALV:
+			displayTextLine(i, "%s", "noALV");
+			messageCheck();
+			break;
+		case LSTSError:
+			displayTextLine(i, "%s", "LSTSError");
+			messageCheck();
+			break;
+		case BUSY:
+			displayTextLine(i, "%s", "BUSY");
+			messageCheck();
+			break;
+		}
+	}
 }
 
 task main(){
 
-	int i = 0;
-	calibrate();
 
-	xCoorEnd = 75;
+	calibrate(); //calibrate gyro value
+	pidRequestedValue = 90; //turn will be 90 degrees ccw
+	xCoorEnd = 75; //goal coordinates
 	yCoorEnd = 135;
 
 	eraseDisplay();
 
-	ClearMessage();
-	wait1Msec(20);
-	sendMessage(5);
-	while (!messageParm[0]){
-		wait1Msec(1);
-	}
+	lastMessage = nPgmTime;
+	messageCheck(); // get message from LSTS
 
-
-	for (i = 0; i < 6; i++){
-		switch (errorTypes[i] & messageParm[0]){
-			case noError:
-				displayTextLine(i, "%s", "noError");
-				xCoorStart = messageParm[1];
-				yCoorStart = messageParm[2];
-				displayString(4, "%d, %d", xCoorStart, yCoorStart);
-				break;
-			case manOveride:
-				displayTextLine(i, "%s", "manOveride");
-				xCoorStart = messageParm[1];
-				yCoorStart = messageParm[2];
-				displayString(4, "%d, %d", xCoorStart, yCoorStart);
-				break;
-			case outBound:
-				displayTextLine(i, "%s", "outBound");
-				break;
-			case noALV:
-				displayTextLine(i, "%s", "noALV");
-				break;
-			case LSTSError:
-				displayTextLine(i, "%s", "LSTSError");
-				break;
-			case BUSY:
-				displayTextLine(i, "%s", "BUSY");
-				break;
-
-			}
-	}
-
-	xDiff = (xCoorStart - xCoorEnd);
-	yDiff = (yCoorStart - yCoorEnd);
+	xDiff = (xCoorStart - xCoorEnd) / 100.0; //convert to meters
+	yDiff = (yCoorStart - yCoorEnd) / 100.0;
 
 	displayString(1, "XDiff = %d", xDiff);
 	displayString(2, "YDiff = %d", yDiff);
 
-	startTask(driveStraight);
-	while (distCount < xDiff){
-	}
-	stopTask(driveStraight);
+	driveUntil(xDiff); // drive xDiff meters in x direction
 
-	motor[motorLeft] = 0;
-	motor[motorRight] = 0;
-
-	distCount = 0;
-
-	ClearMessage();
-	wait1Msec(20);
-	sendMessage(5);
-	while (!messageParm[0]){
+	while (nPgmTime - lastMessage < 1500){ // min 15 seconds between messages
 		wait1Msec(1);
 	}
+	messageCheck(); // get message from LSTS
 
+	// calculate y distances needed to travel in meters
 
-	for (i = 0; i < 6; i++){
-		switch (errorTypes[i] & messageParm[0]){
-			case noError:
-				displayTextLine(i, "%s", "noError");
-				xCoorStart = messageParm[1];
-				yCoorStart = messageParm[2];
-				displayString(4, "%d, %d", xCoorStart, yCoorStart);
-				break;
-			case manOveride:
-				displayTextLine(i, "%s", "manOveride");
-				xCoorStart = messageParm[1];
-				yCoorStart = messageParm[2];
-				displayString(4, "%d, %d", xCoorStart, yCoorStart);
-				break;
-			case outBound:
-				displayTextLine(i, "%s", "outBound");
-				break;
-			case noALV:
-				displayTextLine(i, "%s", "noALV");
-				break;
-			case LSTSError:
-				displayTextLine(i, "%s", "LSTSError");
-				break;
-			case BUSY:
-				displayTextLine(i, "%s", "BUSY");
-				break;
-			}
-		}
+	yDiff = (yCoorStart - yCoorEnd) / 100.0;
 
-	yDiff = (yCoorStart - yCoorEnd);
-
-	pidRequestedValue = 90;
+	// turn 90 degrees clockwise
 
 	startTask(pidController);
 
-	while (fabs(angle - pidRequestedValue) > .1)
-  {
+	while (fabs(angle - pidRequestedValue) > .1) // wait until we are within .1 of desired location
+	{
 	}
 
 	stopTask(pidController);
 
-	startTask(driveStraight);
-	while (distCount < yDiff){
-	}
+	// drive yDiff meters in the y direction
 
-	stopTask(driveStraight);
-
-	motor[motorLeft] = 0;
-	motor[motorRight] = 0;
+	driveUntil(yDiff);
 
 	wait1Msec(1000);
 
+	// beep three times
 	for (int i = 0; i < 3; i++){
 		playSound(soundBlip);
 		wait10Msec(10);
