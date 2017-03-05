@@ -28,11 +28,6 @@ float gyroAngle(){
 	return angle;
 }
 
-float in2encoder(float inch){
-	float encoder;
-	encoder = inch * 95.0;
-	return encoder;
-}
 
 void calibrate(){
 	float i = 0.0;
