@@ -2,11 +2,12 @@
 #define PID_MOTOR_SCALE -1
 #define PID_DRIVE_MAX 127
 #define PID_DRIVE_MIN (-127)
+#define PID_MAGNITUDE_MIN 80
 
 #define PID_INTEGRAL_LIMIT 50
 
-float pid_Kp = 1.3;
-float pid_Ki = 0.005;
+float pid_Kp = 1.2;
+float pid_Ki = 0.008;
 float pid_Kd = 0.00;
 
 static int pidRunning = 1;
@@ -22,8 +23,7 @@ float gyroAngle(){
 	gyroValue = SensorRaw[gyro];
 	gyroRate = gyroValue - offset;
 	angle += (gyroRate / 100.0);
-
-	displayTextLine(5, "%d\n", angle);
+	displayString(6, "Angle = %.2lf", angle);
 
 	return angle;
 }
@@ -52,25 +52,23 @@ task pidController()
     float  pidDerivative;
     float  pidDrive;
 
-    // Init the variables - thanks Glenn :)
     pidLastError  = 0;
     pidIntegral   = 0;
-		//calibrate();
-    while( true )
+
+    while(1)
         {
         // Is PID control active ?
         if( pidRunning ) {
-            angle = gyroAngle();
-            // Read the sensor value and scale
+
+        		angle = gyroAngle();
+
             pidSensorCurrentValue = angle * PID_SENSOR_SCALE;
 
             // calculate error
             pidError = pidSensorCurrentValue - pidRequestedValue;
-
-            // integral - if Ki is not 0
             if( pid_Ki != 0 )
                 {
-                // If we are inside controlable window then integrate the error
+
                 if( fabs(pidError) < PID_INTEGRAL_LIMIT ){
 
                     pidIntegral = pidIntegral + pidError;
@@ -95,6 +93,13 @@ task pidController()
                 pidDrive = PID_DRIVE_MAX;
             if( pidDrive < PID_DRIVE_MIN )
                 pidDrive = PID_DRIVE_MIN;
+            if( pidDrive < 0)
+            	if( fabs(pidDrive) < PID_MAGNITUDE_MIN )
+            		pidDrive = -PID_MAGNITUDE_MIN;
+           	else
+           		if( fabs(pidDrive) < PID_MAGNITUDE_MIN )
+            		pidDrive = PID_MAGNITUDE_MIN;
+
 
             // send to motor
             motor[motorLeft] = pidDrive * PID_MOTOR_SCALE;
@@ -111,7 +116,7 @@ task pidController()
             motor[motorRight] = 0;
             }
 
-        // Run at 20Hz
+        // Run at 50Hz
         wait1Msec( 10 );
         }
 }

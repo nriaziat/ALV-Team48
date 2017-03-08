@@ -17,6 +17,7 @@ const unsigned char errorTypes[6] = {noError, manOveride, outBound, noALV, LSTSE
 static int masterPower = 120;
 static int slavePower = 120;
 static int distCount = 0;
+static int direction;
 
 task driveStraight()
 {
@@ -27,35 +28,60 @@ task driveStraight()
 
 	nMotorEncoder[motorLeft] = 0;
 	nMotorEncoder[motorRight] = 0;
+	if (direction > 0){
+		while(true)
+		{
 
-	while(true)
-	{
+			motor[motorLeft] = masterPower;
+			motor[motorRight] = slavePower;
 
-		motor[motorLeft] = masterPower;
-		motor[motorRight] = slavePower;
+			error = nMotorEncoder[motorLeft] - nMotorEncoder[motorRight]; // find diference between two motor positions
 
-		error = nMotorEncoder[motorLeft] - nMotorEncoder[motorRight]; // find diference between two motor positions
+			slavePower += error / kp; // adjust slave power to match master speed
 
-		slavePower += error / kp; // adjust slave power to match master speed
+			distCount += nMotorEncoder[motorLeft]; // sum total distance
 
-		distCount += nMotorEncoder[motorLeft]; // sum total distance
+			nMotorEncoder[motorLeft] = 0; // reset encoders at end of loop
+			nMotorEncoder[motorRight] = 0;
 
-		nMotorEncoder[motorLeft] = 0; // reset encoders at end of loop
-		nMotorEncoder[motorRight] = 0;
+			wait1Msec(50);
+		}
+	}
+	else{
+		while(true)
+		{
 
-		wait1Msec(100);
+			motor[motorLeft] = -masterPower;
+			motor[motorRight] = -slavePower;
 
+			error = nMotorEncoder[motorLeft] - nMotorEncoder[motorRight]; // find diference between two motor positions
+
+			slavePower -= error / kp; // adjust slave power to match master speed
+
+			distCount += fabs(nMotorEncoder[motorLeft]); // sum total distance
+
+			nMotorEncoder[motorLeft] = 0; // reset encoders at end of loop
+			nMotorEncoder[motorRight] = 0;
+
+			wait1Msec(100);
+		}
 	}
 }
 
 void driveUntil(int distance){
 
 	//take distance in meters
+	if (distance < 0){
+		direction = -1;
+	}
+	else{
+		direction = 1;
+	}
 
 	distCount = 0;
-	startTask(driveStraight);
 
-	while (distCount < distance * 0.3048 * 1000){
+	startTask(driveStraight);
+	while (distCount < fabs(distance) * 0.3048 * 1000){
 	}
 
 	stopTask(driveStraight);
@@ -65,10 +91,11 @@ void driveUntil(int distance){
 }
 
 void messageCheck(){
+	int height = 5;
 	int i = 0;
 	ClearMessage();
 	wait1Msec(20);
-	sendMessage(5);
+	sendMessage(height);
 	while (!messageParm[0]){
 		ClearMessage();
 		wait1Msec(1);
@@ -108,14 +135,35 @@ void messageCheck(){
 	}
 }
 
+void pidTurn(float request){
+
+	float pidStartTime;
+	pidRequestedValue = request;
+
+	pidStartTime = nPgmTime;
+	pidRunning = 1;
+	startTask(pidController);
+
+	while (fabs(angle - pidRequestedValue) > 0.1 && nPgmTime - pidStartTime < 3000) // wait until we are within .1 of desired location
+	{
+		wait1Msec(1);
+	}
+	motor[motorLeft] = 0;
+	motor[motorRight] = 0;
+	pidRunning = 0;
+	stopTask(pidController);
+
+}
+
 task main(){
 
+	int lastMessage;
 
-	calibrate(); //calibrate gyro value
 	pidRequestedValue = 90; //turn will be 90 degrees ccw
 	xCoorEnd = 75; //goal coordinates
 	yCoorEnd = 135;
 
+	calibrate();
 	eraseDisplay();
 
 	lastMessage = nPgmTime;
@@ -140,19 +188,16 @@ task main(){
 
 	// turn 90 degrees clockwise
 
-	startTask(pidController);
 
-	while (fabs(angle - pidRequestedValue) > .1) // wait until we are within .1 of desired location
-	{
-	}
+	pidTurn(90);
 
-	stopTask(pidController);
+	wait1Msec(200);
 
 	// drive yDiff meters in the y direction
 
 	driveUntil(yDiff);
 
-	wait1Msec(1000);
+	wait1Msec(200);
 
 	// beep three times
 	for (int i = 0; i < 3; i++){
@@ -160,4 +205,18 @@ task main(){
 		wait10Msec(10);
 	}
 
+	driveUntil(-yDiff);
+
+	wait1Msec(200);
+
+	pidTurn(0.1);
+
+	wait10Msec(200);
+
+	driveUntil(-xDiff);
+
+	for (int i = 0; i < 3; i++){
+		playSound(soundBlip);
+		wait10Msec(10);
+	}
 }
