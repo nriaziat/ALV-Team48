@@ -80,10 +80,10 @@ end
 nxt = NXTInit(name);
 
 % Beginning the plot of manual/automatic
-horizontal = 5; % Number of boxes in horizontal direction
-vertical = 5; % Number of boxes in vertical direction
-dim_w = 150; % Box width, mm
-dim_h = 150; % Box height, mm
+horizontal = 18; % Number of boxes in horizontal direction
+vertical = 9; % Number of boxes in vertical direction
+dim_w = 100; % Box width, mm
+dim_h = 100; % Box height, mm
 
 % versions = 'student', 'PoC', 'Final'
 version = 'student';

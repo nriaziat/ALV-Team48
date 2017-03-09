@@ -14,8 +14,8 @@ const unsigned char BUSY = 0x20; // hex for 0010 0000
 const unsigned char errorTypes[6] = {noError, manOveride, outBound, noALV, LSTSError, BUSY};
 
 
-static int masterPower = 120;
-static int slavePower = 120;
+static int masterPower = 110;
+static int slavePower = 110;
 static int distCount = 0;
 static int direction;
 
@@ -81,7 +81,7 @@ void driveUntil(int distance){
 	distCount = 0;
 
 	startTask(driveStraight);
-	while (distCount < fabs(distance) * 0.3048 * 1000){
+	while (distCount < fabs(distance) * 0.34 * 1000){
 	}
 
 	stopTask(driveStraight);
@@ -160,8 +160,8 @@ task main(){
 	int lastMessage;
 
 	pidRequestedValue = 90; //turn will be 90 degrees ccw
-	xCoorEnd = 75; //goal coordinates
-	yCoorEnd = 135;
+	xCoorEnd = 1350; //goal coordinates
+	yCoorEnd = 750;
 
 	calibrate();
 	eraseDisplay();
@@ -169,27 +169,27 @@ task main(){
 	lastMessage = nPgmTime;
 	messageCheck(); // get message from LSTS
 
-	xDiff = (xCoorStart - xCoorEnd) / 100.0; //convert to meters
-	yDiff = (yCoorStart - yCoorEnd) / 100.0;
+	xDiff = (xCoorEnd - xCoorStart) / 100.0; //convert to meters
+	yDiff = (yCoorEnd - yCoorStart) / 100.0;
 
 	displayString(1, "XDiff = %d", xDiff);
 	displayString(2, "YDiff = %d", yDiff);
 
 	driveUntil(xDiff); // drive xDiff meters in x direction
 
-	while (nPgmTime - lastMessage < 1500){ // min 15 seconds between messages
+	while (nPgmTime - lastMessage < 5000){ // min 15 seconds between messages
 		wait1Msec(1);
 	}
 	messageCheck(); // get message from LSTS
 
 	// calculate y distances needed to travel in meters
 
-	yDiff = (yCoorStart - yCoorEnd) / 100.0;
+	yDiff = (yCoorEnd - yCoorStart) / 100.0;
 
 	// turn 90 degrees clockwise
 
 
-	pidTurn(90);
+	pidTurn(-90);
 
 	wait1Msec(200);
 
@@ -202,16 +202,18 @@ task main(){
 	// beep three times
 	for (int i = 0; i < 3; i++){
 		playSound(soundBlip);
-		wait10Msec(10);
+		wait1Msec(10);
 	}
+
+	wait1Msec(500);
 
 	driveUntil(-yDiff);
 
-	wait1Msec(200);
+	wait1Msec(500);
 
-	pidTurn(0.1);
+	pidTurn(2);
 
-	wait10Msec(200);
+	wait1Msec(500);
 
 	driveUntil(-xDiff);
 

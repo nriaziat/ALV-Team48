@@ -12,36 +12,49 @@ static int distCount = 0;
 task driveStraight()
 {
 
-  int error = 0;
+	int error = 0;
 
-  int kp = 5;
+	int kp = 5;
 
-  nMotorEncoder[motorLeft] = 0;
-  nMotorEncoder[motorRight] = 0;
+	nMotorEncoder[motorLeft] = 0;
+	nMotorEncoder[motorRight] = 0;
 
-  while(true)
-  {
 
-    motor[motorLeft] = masterPower;
-    motor[motorRight] = slavePower;
+	motor[motorLeft] = masterPower;
+	motor[motorRight] = slavePower;
 
-    error = nMotorEncoder[motorLeft] - nMotorEncoder[motorRight];
+	error = nMotorEncoder[motorLeft] - nMotorEncoder[motorRight]; // find diference between two motor positions
 
-    slavePower += error / kp;
+	slavePower += error / kp; // adjust slave power to match master speed
 
-    distCount += nMotorEncoder[motorLeft];
+	distCount += nMotorEncoder[motorLeft]; // sum total distance
 
-    nMotorEncoder[motorLeft] = 0;
-  	nMotorEncoder[motorRight] = 0;
+	nMotorEncoder[motorLeft] = 0; // reset encoders at end of loop
+	nMotorEncoder[motorRight] = 0;
 
-    wait1Msec(100);
+	wait1Msec(50);
+}
 
-  }
+void driveUntil(int distance){
+
+	//take distance in meters
+	distCount = 0;
+
+	startTask(driveStraight);
+	while (distCount < fabs(distance) * 0.34 * 1000){
+	}
+
+	stopTask(driveStraight);
+
+	motor[motorLeft] = 0;
+	motor[motorRight] = 0;
 }
 
 task main () {
 
-	pidRequestedValue = 30;
+	calibrate();
+
+	pidRequestedValue = -30;
   startTask(pidController);
 
   while (fabs(angle - pidRequestedValue) > .1)
@@ -50,13 +63,13 @@ task main () {
 
 	stopTask(pidController);
 
-	wait10Msec(1);
+	wait1Msec(10);
 
-	startTask(driveStraight);
-	while (distCount < 2 * 0.3048 * 1000){ // 2 meters
-	}
 
-	stopTask(driveStraight);
+
+	driveUntil(4);
+
+
 
 	motor[motorLeft] = 0;
 	motor[motorRight] = 0;

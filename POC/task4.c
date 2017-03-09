@@ -57,7 +57,7 @@ task main()
 
 	startTask(driveStraight);
 
-	while (fabs(SensorValue[hallEffect]- hallCal) < 100){
+	while (fabs(SensorValue[hallEffect]- hallCal) < 40){
 		displayString(4, "%d", SensorValue[hallEffect]- hallCal);
 
 	}
